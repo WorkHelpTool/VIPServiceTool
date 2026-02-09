@@ -1,11 +1,13 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
+    { "src": "api/feishu.js", "use": "@vercel/node" },
+    { "src": "api/feishu/event.js", "use": "@vercel/node" },
     { "src": "**/*", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/api/feishu/event", "dest": "/api/feishu/event.js" },
+    { "src": "/api/feishu", "dest": "/api/feishu.js" },
     { "handle": "filesystem" },
     { "src": "/", "dest": "/index.html" }
   ]
