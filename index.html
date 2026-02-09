@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>用户交易可视化</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app app-hidden">
+      <header class="header">
+        <div class="brand">
+          <div class="logo-wrap">
+            <img id="adminLogo" src="CustomerServiceToolLogo.png" alt="Logo" class="logo" />
+          </div>
+          <div>
+            <h1 id="titleText">VIP服务工具</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="admin-chip">
+            <span id="adminName">warren</span>
+          </div>
+          <button id="logoutBtn" class="ghost">退出</button>
+          <div class="lang-switch">
+            <button class="lang-btn active" data-lang="zh">简体中文</button>
+            <button class="lang-btn" data-lang="en">English</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="controls">
+        <div class="query-card">
+          <div class="query-header">
+            <div>
+              <h2 id="queryTitle">查询用户</h2>
+              <p id="querySubtitle">通过地址或邀请码快速检索</p>
+            </div>
+            <div id="status" class="status">准备就绪</div>
+          </div>
+          <div class="query-body">
+            <label class="field">
+              <span id="queryLabel">EVM 地址</span>
+              <input id="queryInput" type="text" placeholder="请输入地址或邀请码" value="0x181Baa78e7Dbb1159e01dbb6A7d15533f92a810C" />
+            </label>
+            <button id="loadBtn" class="primary">查询</button>
+          </div>
+          <div class="query-hint" id="queryHint">支持自动识别：EVM / Solana / 邀请码</div>
+        </div>
+      </section>
+
+      <section class="overview">
+        <div class="section-header">
+          <h2 id="overviewTitle">用户概览</h2>
+          <p id="overviewSubtitle">基础信息与关键画像</p>
+        </div>
+        <div id="basicInfoGrid" class="grid"></div>
+      </section>
+
+      <section class="analysis">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 id="tradeTitle">交易分析</h3>
+          </div>
+          <div id="tradeStats" class="metrics"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3 id="inviteTitle">邀新分析</h3>
+          </div>
+          <div id="inviteStats" class="metrics"></div>
+          <div class="chart">
+            <div class="chart-title" id="inviteChartTitle">近 30 天佣金走势</div>
+            <div id="inviteChart" class="chart-bars"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h3 id="redPacketTitle">红包统计</h3>
+          </div>
+          <div id="redPacketStats" class="metrics"></div>
+        </div>
+      </section>
+
+      <section class="tx-section">
+        <div class="section-header">
+          <div>
+            <h2 id="txTitle">交易可视化</h2>
+            <p id="txCount">暂无交易</p>
+          </div>
+          <div class="tx-actions">
+            <button id="createTicketBtn" class="primary" disabled>一键生成工单</button>
+          </div>
+          <label class="field small">
+            <span id="txFilterLabel">筛选</span>
+            <input id="txFilterInput" type="text" placeholder="按 tx id 或链接筛选" />
+          </label>
+        </div>
+
+        <main class="layout">
+          <section class="list">
+            <div class="list-header">
+              <div id="txHeaderIndex">序号</div>
+              <div id="txHeaderId">TxID</div>
+              <div id="txHeaderLink">链接</div>
+            </div>
+            <div id="txListBody" class="list-body"></div>
+          </section>
+
+          <section class="preview">
+            <div class="preview-header">
+              <span id="previewTitle">详情预览</span>
+              <a id="openNewTab" href="#" target="_blank" rel="noopener">新标签页打开</a>
+            </div>
+            <iframe id="previewFrame" title="交易详情"></iframe>
+            <div id="emptyPreview" class="empty">点击左侧某条记录以预览</div>
+          </section>
+        </main>
+      </section>
+    </div>
+
+    <div class="watermark" aria-hidden="true">
+      <img id="adminWatermark" src="CustomerServiceToolLogo.png" alt="" />
+    </div>
+
+    <div id="loginOverlay" class="login-overlay">
+      <div class="login-card">
+        <div class="login-header">
+          <h2 id="loginTitle">管理员登录</h2>
+          <p id="loginSubtitle">仅授权管理员可访问</p>
+        </div>
+        <label class="field">
+          <span id="loginUserLabel">用户名</span>
+          <input id="loginUser" type="text" placeholder="请输入用户名" />
+        </label>
+        <label class="field">
+          <span id="loginPassLabel">密码</span>
+          <input id="loginPass" type="password" placeholder="请输入密码" />
+        </label>
+        <div id="loginError" class="login-error"></div>
+        <button id="loginBtn" class="primary">登录</button>
+      </div>
+    </div>
+
+    <div id="ticketModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="ticketModalBackdrop"></div>
+      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="ticketTitle">
+        <div class="modal-header">
+          <h3 id="ticketTitle">生成工单</h3>
+          <button class="icon-btn" id="ticketCloseBtn" aria-label="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <span id="ticketUserLabel">用户名</span>
+            <input id="ticketUserName" type="text" placeholder="请输入用户名" />
+          </label>
+          <label class="field">
+            <span id="ticketReporterLabel">反馈人</span>
+            <input id="ticketReporter" type="text" placeholder="请输入反馈人" readonly />
+          </label>
+          <label class="field">
+            <span id="ticketEvmLabel">UX EVM 地址</span>
+            <input id="ticketEvmAddress" type="text" readonly />
+          </label>
+          <label class="field">
+            <span id="ticketTxLabel">TX 链接</span>
+            <input id="ticketTxLink" type="text" readonly />
+          </label>
+          <label class="field">
+            <span id="ticketTypeLabel">问题类型</span>
+            <select id="ticketType">
+              <option value="frontend">前端问题</option>
+              <option value="backend">后端问题</option>
+            </select>
+          </label>
+          <label class="field">
+            <span id="ticketIssueLabel">问题描述</span>
+            <textarea id="ticketIssue" rows="4" placeholder="请输入问题描述"></textarea>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button id="ticketSubmitBtn" class="primary">提交工单</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
