@@ -656,6 +656,15 @@ button:disabled {
   text-align: center;
 }
 
+.ticket-section .list-header,
+.ticket-section .list-row {
+  grid-template-columns: 1.2fr 1fr 1fr 2fr;
+}
+
+.ticket-section .list-row {
+  font-size: 13px;
+}
+
 
 @media (max-width: 1024px) {
   .layout {

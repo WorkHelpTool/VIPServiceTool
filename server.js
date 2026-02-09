@@ -1,5 +1,8 @@
 import express from "express";
 import cors from "cors";
+import mysql from "mysql2/promise";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const app = express();
 app.use(cors());
@@ -12,6 +15,11 @@ const FEISHU_AT_USER_ID = process.env.FEISHU_AT_USER_ID || "7511938969643319297"
 const FEISHU_AT_USER_ID_TYPE = (process.env.FEISHU_AT_USER_ID_TYPE || "user_id").toLowerCase();
 const FEISHU_AT_USER_NAME = process.env.FEISHU_AT_USER_NAME;
 const DEBUG_RPC_BASE = "https://rpc-debug.particle.network/evm-chain/public";
+const FEISHU_FORCE_AT_DEFAULT = process.env.FEISHU_FORCE_AT_DEFAULT !== "false";
+const ISSUE_TYPE_AT_MAP = {
+  frontend: "6711497216441188612",
+  backend: "6709707367363117315",
+};
 const REPORTER_USER_ID_MAP = (() => {
   try {
     if (process.env.FEISHU_REPORTER_USER_ID_MAP) {
@@ -21,11 +29,74 @@ const REPORTER_USER_ID_MAP = (() => {
     console.warn("Invalid FEISHU_REPORTER_USER_ID_MAP JSON");
   }
   return {
+    ethan: "7516762733551861788",
+    alian: "7550950007357505537",
+    bryan: "7550950262271082499",
+    jethro: "7523147092764786707",
     warren: "7511938969643319297",
   };
 })();
-
 const messageReporterMap = new Map();
+const sessionTokens = new Map();
+let dbPool = null;
+
+const initDb = async () => {
+  if (dbPool) return dbPool;
+  const {
+    DB_HOST = "127.0.0.1",
+    DB_PORT = "3306",
+    DB_USER = "vip_user",
+    DB_PASSWORD = "vip_pass",
+    DB_NAME = "vipservicetool",
+  } = process.env;
+
+  dbPool = await mysql.createPool({
+    host: DB_HOST,
+    port: Number(DB_PORT),
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    connectionLimit: 5,
+  });
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(64) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      avatar_url VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  await dbPool.query(`
+    CREATE TABLE IF NOT EXISTS tickets (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_name VARCHAR(120),
+      reporter VARCHAR(120),
+      evm_address VARCHAR(120),
+      tx_link TEXT,
+      issue TEXT,
+      error_info TEXT,
+      tx_hash VARCHAR(120),
+      chain_id VARCHAR(50),
+      issue_type VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const [rows] = await dbPool.query("SELECT COUNT(*) as count FROM admins");
+  if (rows?.[0]?.count === 0) {
+    const defaultHash = await bcrypt.hash("admin123", 10);
+    await dbPool.query(
+      "INSERT INTO admins (username, password_hash, avatar_url) VALUES (?, ?, ?)",
+      ["warren", defaultHash, "Admin/Warren.jpg"]
+    );
+  }
+
+  return dbPool;
+};
 
 const fetchDebugError = async (txHash, chainId) => {
   try {
@@ -95,13 +166,22 @@ const normalizeReporterKey = (reporter) =>
     .trim()
     .toLowerCase();
 
+const getAtUserId = (issueType) => {
+  if (FEISHU_FORCE_AT_DEFAULT) return FEISHU_AT_USER_ID;
+  const key = String(issueType || "").toLowerCase();
+  return ISSUE_TYPE_AT_MAP[key] || FEISHU_AT_USER_ID;
+};
+
+const getSenderUserId = (sender) =>
+  sender?.sender_id?.user_id || sender?.sender_id?.open_id || sender?.sender_id?.union_id || "";
+
 if (!FEISHU_APP_ID || !FEISHU_APP_SECRET || !FEISHU_CHAT_ID) {
   console.warn("Missing FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_CHAT_ID env vars.");
 }
 
 app.post("/api/feishu", async (req, res) => {
   try {
-    const { userName, reporter, evmAddress, txLink, issue, txHash, chainId } = req.body || {};
+    const { userName, reporter, evmAddress, txLink, issue, txHash, chainId, issueType } = req.body || {};
     if (!userName || !reporter || !issue) {
       return res.status(400).json({ message: "userName, reporter and issue are required" });
     }
@@ -118,12 +198,13 @@ app.post("/api/feishu", async (req, res) => {
       .trim();
     const errorInfo = txHash ? await fetchDebugError(txHash, chainId) : null;
     const atName = FEISHU_AT_USER_NAME || "汪南 Warren";
+    const atUserId = getAtUserId(issueType);
     const atIdKey = FEISHU_AT_USER_ID_TYPE === "open_id"
       ? "open_id"
       : FEISHU_AT_USER_ID_TYPE === "union_id"
       ? "union_id"
       : "user_id";
-    const atTagText = `<at ${atIdKey}="${FEISHU_AT_USER_ID}">${atName}</at>`;
+    const atTagText = `<at ${atIdKey}="${atUserId}">${atName}</at>`;
     const lines = [
       "【客户工单】",
       `${atTagText} 请及时处理`,
@@ -145,11 +226,28 @@ app.post("/api/feishu", async (req, res) => {
       text: textContent,
     });
 
+    const pool = await initDb();
+    await pool.query(
+      "INSERT INTO tickets (user_name, reporter, evm_address, tx_link, issue, error_info, tx_hash, chain_id, issue_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        userName,
+        reporter,
+        evmAddress || "",
+        txLink || "",
+        cleanedIssue || "",
+        errorInfo || "",
+        txHash || "",
+        chainId || "",
+        issueType || "",
+      ]
+    );
+
     const messageId = msgData?.data?.message_id;
     if (messageId) {
       messageReporterMap.set(messageId, {
         reporter: normalizeReporterKey(reporter),
         notified: false,
+        atUserId,
       });
     }
 
@@ -191,6 +289,11 @@ app.post("/api/feishu/event", async (req, res) => {
     return res.json({ ok: true });
   }
 
+  const senderUserId = getSenderUserId(event.sender);
+  if (record.atUserId && senderUserId && senderUserId !== record.atUserId) {
+    return res.json({ ok: true });
+  }
+
   const reporterKey = record.reporter;
   const reporterUserId = REPORTER_USER_ID_MAP[reporterKey];
   if (!reporterUserId) {
@@ -211,6 +314,79 @@ app.post("/api/feishu/event", async (req, res) => {
   }
 
   return res.json({ ok: true });
+});
+
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ message: "username and password required" });
+    }
+    const pool = await initDb();
+    const [rows] = await pool.query("SELECT * FROM admins WHERE username = ? LIMIT 1", [username]);
+    const admin = rows?.[0];
+    if (!admin) return res.status(401).json({ message: "Invalid credentials" });
+    const ok = await bcrypt.compare(password, admin.password_hash);
+    if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+    const token = crypto.randomUUID();
+    sessionTokens.set(token, admin.id);
+    return res.json({
+      token,
+      admin: {
+        id: admin.id,
+        username: admin.username,
+        avatarUrl: admin.avatar_url || "",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error", detail: String(error) });
+  }
+});
+
+app.put("/api/admin/profile", async (req, res) => {
+  try {
+    const { token, avatarUrl, password } = req.body || {};
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+    const adminId = sessionTokens.get(token);
+    if (!adminId) return res.status(401).json({ message: "Unauthorized" });
+    const pool = await initDb();
+    const updates = [];
+    const values = [];
+    if (avatarUrl !== undefined) {
+      updates.push("avatar_url = ?");
+      values.push(avatarUrl || "");
+    }
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
+      updates.push("password_hash = ?");
+      values.push(hash);
+    }
+    if (updates.length === 0) {
+      return res.json({ ok: true });
+    }
+    values.push(adminId);
+    await pool.query(`UPDATE admins SET ${updates.join(", ")} WHERE id = ?`, values);
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error", detail: String(error) });
+  }
+});
+
+app.get("/api/tickets", async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const pool = await initDb();
+    const [rows] = await pool.query(
+      "SELECT id, user_name, reporter, issue, created_at FROM tickets ORDER BY id DESC LIMIT ?",
+      [limit]
+    );
+    return res.json({ data: rows || [] });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error", detail: String(error) });
+  }
 });
 
 const PORT = process.env.PORT || 8787;

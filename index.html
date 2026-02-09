@@ -21,6 +21,7 @@
           <div class="admin-chip">
             <span id="adminName">warren</span>
           </div>
+          <button id="adminSettingsBtn" class="ghost">设置</button>
           <button id="logoutBtn" class="ghost">退出</button>
           <div class="lang-switch">
             <button class="lang-btn active" data-lang="zh">简体中文</button>
@@ -117,6 +118,24 @@
           </section>
         </main>
       </section>
+
+      <section class="ticket-section">
+        <div class="section-header">
+          <div>
+            <h2>工单记录</h2>
+            <p>最近提交记录</p>
+          </div>
+        </div>
+        <div class="list">
+          <div class="list-header">
+            <div>时间</div>
+            <div>用户</div>
+            <div>反馈人</div>
+            <div>问题</div>
+          </div>
+          <div id="ticketListBody" class="list-body"></div>
+        </div>
+      </section>
     </div>
 
     <div class="watermark" aria-hidden="true">
@@ -180,6 +199,29 @@
         </div>
         <div class="modal-footer">
           <button id="ticketSubmitBtn" class="primary">提交工单</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="adminSettingsModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" id="adminSettingsBackdrop"></div>
+      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="adminSettingsTitle">
+        <div class="modal-header">
+          <h3 id="adminSettingsTitle">管理员设置</h3>
+          <button class="icon-btn" id="adminSettingsClose" aria-label="关闭">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <span>头像 URL</span>
+            <input id="adminAvatarUrl" type="text" placeholder="请输入头像 URL" />
+          </label>
+          <label class="field">
+            <span>新密码</span>
+            <input id="adminPassword" type="password" placeholder="请输入新密码" />
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button id="adminSettingsSave" class="primary">保存</button>
         </div>
       </div>
     </div>

@@ -64,6 +64,14 @@ const loginTitle = document.getElementById("loginTitle");
 const loginSubtitle = document.getElementById("loginSubtitle");
 const loginUserLabel = document.getElementById("loginUserLabel");
 const loginPassLabel = document.getElementById("loginPassLabel");
+const ticketListBody = document.getElementById("ticketListBody");
+const adminSettingsBtn = document.getElementById("adminSettingsBtn");
+const adminSettingsModal = document.getElementById("adminSettingsModal");
+const adminSettingsBackdrop = document.getElementById("adminSettingsBackdrop");
+const adminSettingsClose = document.getElementById("adminSettingsClose");
+const adminSettingsSave = document.getElementById("adminSettingsSave");
+const adminAvatarUrl = document.getElementById("adminAvatarUrl");
+const adminPassword = document.getElementById("adminPassword");
 
 let fullTxs = [];
 let activeRowId = null;
@@ -76,18 +84,11 @@ let currentTxChainId = "";
 let canCreateTicket = false;
 const FEISHU_API_URL = "/api/feishu";
 let currentAdmin = null;
+let adminToken = null;
+let currentAdminInfo = null;
 const TX_DETAIL_API_URL =
   "https://universal-rpc-proxy.particle.network/?method=universal_getTransaction&mode=mainnet&device_id=aae80668-67eb-4fc7-a97c-d963e19e9053";
 const txDetailCache = new Map();
-
-const ADMIN_ACCOUNTS = {
-  warren: { password: "admin123", logo: "Admin/Warren.jpg", role: "super" },
-  alian: { password: "admin123", logo: "Admin/Alian.jpg", role: "admin" },
-  bryan: { password: "admin123", logo: "Admin/Bryan.jpg", role: "admin" },
-  ethan: { password: "admin123", logo: "Admin/Ethan.png", role: "admin" },
-  jethro: { password: "admin123", logo: "Admin/Jethro.jpg", role: "admin" },
-  peter: { password: "admin123", logo: "Admin/Peter.jpg", role: "admin" },
-};
 
 const API_BASE = "https://universal-app-api-staging.particle.network/user_activity";
 const QUERY_CONFIG = {
@@ -398,26 +399,73 @@ const closeTicketModal = () => {
   ticketModal.setAttribute("aria-hidden", "true");
 };
 
-const setLoggedInState = (adminKey) => {
-  const admin = ADMIN_ACCOUNTS[adminKey];
+const setLoggedInState = (admin) => {
   if (!admin) return;
-  currentAdmin = adminKey;
+  currentAdmin = admin.username;
+  currentAdminInfo = admin;
   if (adminName) {
-    adminName.textContent = adminKey.charAt(0).toUpperCase() + adminKey.slice(1);
+    adminName.textContent = admin.username.charAt(0).toUpperCase() + admin.username.slice(1);
   }
+  if (adminLogo && admin.avatarUrl) adminLogo.src = admin.avatarUrl;
+  if (adminWatermark && admin.avatarUrl) adminWatermark.src = admin.avatarUrl;
   if (appRoot) appRoot.classList.remove("app-hidden");
   if (loginOverlay) loginOverlay.style.display = "none";
   if (ticketReporter) {
-    ticketReporter.value = adminKey.charAt(0).toUpperCase() + adminKey.slice(1);
+    ticketReporter.value = admin.username.charAt(0).toUpperCase() + admin.username.slice(1);
   }
-  localStorage.setItem("adminUser", adminKey);
 };
 
 const setLoggedOutState = () => {
   currentAdmin = null;
+  currentAdminInfo = null;
+  adminToken = null;
   localStorage.removeItem("adminUser");
+  localStorage.removeItem("adminToken");
   if (appRoot) appRoot.classList.add("app-hidden");
   if (loginOverlay) loginOverlay.style.display = "flex";
+};
+
+const openAdminSettings = () => {
+  if (adminAvatarUrl) adminAvatarUrl.value = currentAdminInfo?.avatarUrl || "";
+  if (adminPassword) adminPassword.value = "";
+  if (adminSettingsModal) {
+    adminSettingsModal.classList.add("show");
+    adminSettingsModal.setAttribute("aria-hidden", "false");
+  }
+};
+
+const closeAdminSettings = () => {
+  if (adminSettingsModal) {
+    adminSettingsModal.classList.remove("show");
+    adminSettingsModal.setAttribute("aria-hidden", "true");
+  }
+};
+
+const fetchTickets = async () => {
+  if (!ticketListBody) return;
+  try {
+    const res = await fetch("/api/tickets?limit=50", { cache: "no-store" });
+    const data = await res.json();
+    const rows = Array.isArray(data?.data) ? data.data : [];
+    if (rows.length === 0) {
+      ticketListBody.innerHTML = '<div class="empty">暂无工单</div>';
+      return;
+    }
+    ticketListBody.innerHTML = "";
+    rows.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "list-row";
+      row.innerHTML = `
+        <div>${formatTime(item.created_at)}</div>
+        <div>${item.user_name || "-"}</div>
+        <div>${item.reporter || "-"}</div>
+        <div>${item.issue || "-"}</div>
+      `;
+      ticketListBody.appendChild(row);
+    });
+  } catch (error) {
+    ticketListBody.innerHTML = '<div class="empty">工单加载失败</div>';
+  }
 };
 
 const formatTime = (value) => {
@@ -860,15 +908,29 @@ langButtons.forEach((btn) => {
 });
 
 loginBtn.addEventListener("click", () => {
-  const user = loginUser.value.trim().toLowerCase();
+  const user = loginUser.value.trim();
   const pass = loginPass.value.trim();
-  const admin = ADMIN_ACCOUNTS[user];
-  if (!admin || admin.password !== pass) {
-    loginError.textContent = I18N[activeLang].loginError;
-    return;
-  }
-  loginError.textContent = "";
-  setLoggedInState(user);
+  fetch("/api/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: user, password: pass }),
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error("login failed");
+      return res.json();
+    })
+    .then((data) => {
+      adminToken = data.token;
+      currentAdminInfo = data.admin;
+      localStorage.setItem("adminUser", JSON.stringify(data.admin));
+      localStorage.setItem("adminToken", adminToken);
+      loginError.textContent = "";
+      setLoggedInState(data.admin);
+      fetchTickets();
+    })
+    .catch(() => {
+      loginError.textContent = I18N[activeLang].loginError;
+    });
 });
 
 loginPass.addEventListener("keydown", (event) => {
@@ -880,6 +942,39 @@ loginPass.addEventListener("keydown", (event) => {
 logoutBtn.addEventListener("click", () => {
   setLoggedOutState();
 });
+
+if (adminSettingsBtn) {
+  adminSettingsBtn.addEventListener("click", openAdminSettings);
+}
+if (adminSettingsClose) adminSettingsClose.addEventListener("click", closeAdminSettings);
+if (adminSettingsBackdrop) adminSettingsBackdrop.addEventListener("click", closeAdminSettings);
+if (adminSettingsSave) {
+  adminSettingsSave.addEventListener("click", () => {
+    if (!adminToken) return;
+    const avatarUrl = adminAvatarUrl?.value.trim() || "";
+    const password = adminPassword?.value.trim() || "";
+    fetch("/api/admin/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: adminToken, avatarUrl, password }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("update failed");
+        return res.json();
+      })
+      .then(() => {
+        if (currentAdminInfo) {
+          currentAdminInfo.avatarUrl = avatarUrl || currentAdminInfo.avatarUrl;
+          localStorage.setItem("adminUser", JSON.stringify(currentAdminInfo));
+          setLoggedInState(currentAdminInfo);
+        }
+        closeAdminSettings();
+      })
+      .catch(() => {
+        alert("保存失败");
+      });
+  });
+}
 
 createTicketBtn.addEventListener("click", () => {
   if (!canCreateTicket) {
@@ -910,6 +1005,7 @@ ticketSubmitBtn.addEventListener("click", () => {
   const payload = {
     userName: name,
     reporter,
+    issueType: type,
     evmAddress: ticketEvmAddress.value.trim(),
     txLink: ticketTxLink.value.trim(),
     txHash: currentTxHash,
@@ -934,6 +1030,7 @@ ticketSubmitBtn.addEventListener("click", () => {
       closeTicketModal();
       ticketUserName.value = "";
       ticketIssue.value = "";
+      fetchTickets();
     })
     .catch((err) => {
       console.error(err);
@@ -950,8 +1047,16 @@ window.addEventListener("load", () => {
   updateQueryHint();
   applyLanguage();
   const savedAdmin = localStorage.getItem("adminUser");
-  if (savedAdmin && ADMIN_ACCOUNTS[savedAdmin]) {
-    setLoggedInState(savedAdmin);
+  const savedToken = localStorage.getItem("adminToken");
+  if (savedAdmin && savedToken) {
+    try {
+      adminToken = savedToken;
+      currentAdminInfo = JSON.parse(savedAdmin);
+      setLoggedInState(currentAdminInfo);
+      fetchTickets();
+    } catch {
+      setLoggedOutState();
+    }
   } else {
     setLoggedOutState();
   }
