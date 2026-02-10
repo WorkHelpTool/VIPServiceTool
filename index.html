@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>用户交易可视化</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>VIP Service Tool</title>
+    <link rel="icon" href="CustomerServiceToolLogo.png" />
+    <link rel="stylesheet" href="styles.css?v=20260210" />
   </head>
   <body>
     <div id="app" class="app app-hidden">
@@ -42,7 +43,7 @@
           <div class="query-body">
             <label class="field">
               <span id="queryLabel">EVM 地址</span>
-              <input id="queryInput" type="text" placeholder="请输入地址或邀请码" value="0x181Baa78e7Dbb1159e01dbb6A7d15533f92a810C" />
+              <input id="queryInput" type="text" placeholder="请输入地址或邀请码" value="0xb237535DCB9a88499cb99C9b79FEF739D57Fa6e2" />
             </label>
             <button id="loadBtn" class="primary">查询</button>
           </div>
@@ -67,7 +68,7 @@
         </div>
         <div class="panel">
           <div class="panel-header">
-            <h3 id="inviteTitle">邀新分析</h3>
+            <h3 id="inviteTitle">邀请分析</h3>
           </div>
           <div id="inviteStats" class="metrics"></div>
           <div class="chart">
@@ -132,8 +133,12 @@
             <div>用户</div>
             <div>反馈人</div>
             <div>问题</div>
+            <div>状态</div>
           </div>
           <div id="ticketListBody" class="list-body"></div>
+        </div>
+        <div class="ticket-actions">
+          <button type="button" id="ticketExportBtn" class="ghost">导出工单</button>
         </div>
       </section>
     </div>
@@ -212,13 +217,31 @@
         </div>
         <div class="modal-body">
           <label class="field">
-            <span>头像 URL</span>
-            <input id="adminAvatarUrl" type="text" placeholder="请输入头像 URL" />
-          </label>
-          <label class="field">
             <span>新密码</span>
             <input id="adminPassword" type="password" placeholder="请输入新密码" />
           </label>
+          <div class="admin-divider"></div>
+          <div class="admin-section">
+            <div id="adminManageSection">
+              <h4 id="adminManageTitle">新增授权账号</h4>
+              <div class="admin-grid">
+                <label class="field">
+                  <span id="adminNewUserLabel">用户名</span>
+                  <input id="adminNewUser" type="text" placeholder="请输入用户名" />
+                </label>
+                <label class="field">
+                  <span id="adminNewAvatarLabel">头像</span>
+                  <input id="adminNewAvatar" type="file" accept="image/*" />
+                </label>
+              </div>
+              <div class="admin-actions">
+                <button id="adminAddBtn" class="primary">新增</button>
+                <span id="adminAddHint" class="admin-hint"></span>
+              </div>
+            </div>
+            <div id="adminListTitle" class="admin-list-title">当前授权账号</div>
+            <div class="admin-list" id="adminList"></div>
+          </div>
         </div>
         <div class="modal-footer">
           <button id="adminSettingsSave" class="primary">保存</button>
@@ -226,6 +249,6 @@
       </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260210"></script>
   </body>
 </html>

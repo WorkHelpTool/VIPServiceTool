@@ -579,6 +579,18 @@ button:disabled {
   font-weight: 600;
   color: #f5d0fe;
   word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tx-token-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .tx-change::after {
@@ -658,13 +670,163 @@ button:disabled {
 
 .ticket-section .list-header,
 .ticket-section .list-row {
-  grid-template-columns: 1.2fr 1fr 1fr 2fr;
+  grid-template-columns: 1.2fr 1fr 1fr 2fr 56px;
+}
+
+.ticket-section .list-header > div:nth-child(5),
+.ticket-section .list-row > div:nth-child(5) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .ticket-section .list-row {
   font-size: 13px;
 }
 
+.ticket-section .ticket-resolved-cell {
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticket-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+#adminManageSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+#adminManageSection .admin-grid {
+  display: grid;
+  gap: 18px;
+}
+
+#adminManageSection .field {
+  margin-bottom: 0;
+}
+
+#adminManageSection .field + .field {
+  margin-top: 0;
+}
+
+.admin-actions {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-divider {
+  height: 1px;
+  background: rgba(248, 187, 255, 0.2);
+  margin: 16px 0;
+}
+
+.admin-list-title {
+  font-size: 12px;
+  color: #e9d5ff;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+
+.admin-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-item {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(31, 18, 53, 0.7);
+  border: 1px solid rgba(248, 187, 255, 0.18);
+}
+
+.admin-item img {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 8px 18px rgba(23, 4, 33, 0.35);
+}
+
+.admin-item .name {
+  font-weight: 700;
+  color: #fdf4ff;
+  text-transform: capitalize;
+}
+
+.admin-item .role {
+  justify-self: end;
+  font-size: 12px;
+  color: #e9d5ff;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(217, 70, 239, 0.14);
+  border: 1px solid rgba(217, 70, 239, 0.25);
+  white-space: nowrap;
+}
+
+.admin-item-with-feishu {
+  grid-template-columns: 64px 1fr auto 1fr auto;
+}
+
+.admin-feishu-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-feishu-input {
+  width: 100%;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 187, 255, 0.35);
+  font-size: 12px;
+  background: rgba(31, 18, 53, 0.8);
+  color: var(--text);
+}
+
+.admin-feishu-save {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(217, 70, 239, 0.35);
+  color: #fdf4ff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-feishu-readonly {
+  font-size: 12px;
+  color: #e9d5ff;
+  min-width: 100px;
+}
 
 @media (max-width: 1024px) {
   .layout {

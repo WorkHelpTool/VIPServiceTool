@@ -65,13 +65,24 @@ const loginSubtitle = document.getElementById("loginSubtitle");
 const loginUserLabel = document.getElementById("loginUserLabel");
 const loginPassLabel = document.getElementById("loginPassLabel");
 const ticketListBody = document.getElementById("ticketListBody");
+const ticketExportBtn = document.getElementById("ticketExportBtn");
 const adminSettingsBtn = document.getElementById("adminSettingsBtn");
 const adminSettingsModal = document.getElementById("adminSettingsModal");
 const adminSettingsBackdrop = document.getElementById("adminSettingsBackdrop");
 const adminSettingsClose = document.getElementById("adminSettingsClose");
 const adminSettingsSave = document.getElementById("adminSettingsSave");
-const adminAvatarUrl = document.getElementById("adminAvatarUrl");
 const adminPassword = document.getElementById("adminPassword");
+const adminManageSection = document.getElementById("adminManageSection");
+const adminManageTitle = document.getElementById("adminManageTitle");
+const adminNewUserLabel = document.getElementById("adminNewUserLabel");
+const adminNewAvatarLabel = document.getElementById("adminNewAvatarLabel");
+const adminNewUser = document.getElementById("adminNewUser");
+const adminNewAvatar = document.getElementById("adminNewAvatar");
+const adminNewFeishuId = document.getElementById("adminNewFeishuId");
+const adminAddBtn = document.getElementById("adminAddBtn");
+const adminAddHint = document.getElementById("adminAddHint");
+const adminList = document.getElementById("adminList");
+const adminListTitle = document.getElementById("adminListTitle");
 
 let fullTxs = [];
 let activeRowId = null;
@@ -94,15 +105,15 @@ const API_BASE = "https://universal-app-api-staging.particle.network/user_activi
 const QUERY_CONFIG = {
   evm: {
     param: "evmAddress",
-    sample: "0x181Baa78e7Dbb1159e01dbb6A7d15533f92a810C",
+    sample: "0xb237535DCB9a88499cb99C9b79FEF739D57Fa6e2",
   },
   solana: {
     param: "solanaAddress",
-    sample: "99DHXUbx1MnVbCSkpPSNx52otU13oEy82Puy7MkoNTLw",
+    sample: "92qrqkgoCFFLKjM7XbaYTZksBdRaGv8RhWPR7FbRTCP",
   },
   invite: {
     param: "inviteCode",
-    sample: "YV82EN",
+    sample: "3A24IL",
   },
 };
 
@@ -127,7 +138,7 @@ const I18N = {
     overviewTitle: "用户概览",
     overviewSubtitle: "基础信息与关键画像",
     tradeTitle: "交易分析",
-    inviteTitle: "邀新分析",
+    inviteTitle: "邀请分析",
     inviteChartTitle: "近 30 天佣金走势",
     redPacketTitle: "红包统计",
     txTitle: "交易可视化",
@@ -164,6 +175,14 @@ const I18N = {
     loginButton: "登录",
     logout: "退出",
     loginError: "用户名或密码错误",
+    adminManageTitle: "新增授权账号",
+    adminNewUserLabel: "用户名",
+    adminNewAvatarLabel: "头像",
+    adminAddBtn: "新增",
+    adminAddSuccess: "新增成功",
+    adminAddFail: "新增失败",
+    adminListTitle: "当前授权账号",
+    ticketEmpty: "暂无工单",
     statusReady: "准备就绪",
     statusLoading: "加载中...",
     statusMissingQuery: "请输入查询条件",
@@ -251,6 +270,14 @@ const I18N = {
     loginButton: "Sign in",
     logout: "Logout",
     loginError: "Invalid username or password",
+    adminManageTitle: "Add Authorized User",
+    adminNewUserLabel: "Username",
+    adminNewAvatarLabel: "Avatar",
+    adminAddBtn: "Add",
+    adminAddSuccess: "User added",
+    adminAddFail: "Add failed",
+    adminListTitle: "Authorized Users",
+    ticketEmpty: "No tickets",
     statusReady: "Ready",
     statusLoading: "Loading...",
     statusMissingQuery: "Please enter a query",
@@ -343,6 +370,11 @@ const applyLanguage = () => {
   setText(loginPassLabel, dict.loginPassLabel);
   setText(loginBtn, dict.loginButton);
   setText(logoutBtn, dict.logout);
+  setText(adminManageTitle, dict.adminManageTitle);
+  setText(adminNewUserLabel, dict.adminNewUserLabel);
+  setText(adminNewAvatarLabel, dict.adminNewAvatarLabel);
+  setText(adminAddBtn, dict.adminAddBtn);
+  setText(adminListTitle, dict.adminListTitle);
 
   const config = QUERY_CONFIG[activeQueryType];
   setText(queryLabel, dict.queryLabel[activeQueryType]);
@@ -406,12 +438,16 @@ const setLoggedInState = (admin) => {
   if (adminName) {
     adminName.textContent = admin.username.charAt(0).toUpperCase() + admin.username.slice(1);
   }
-  if (adminLogo && admin.avatarUrl) adminLogo.src = admin.avatarUrl;
-  if (adminWatermark && admin.avatarUrl) adminWatermark.src = admin.avatarUrl;
+  if (adminLogo) adminLogo.src = admin.avatarUrl || "CustomerServiceToolLogo.png";
+  if (adminWatermark) adminWatermark.src = "CustomerServiceToolLogo.png";
   if (appRoot) appRoot.classList.remove("app-hidden");
   if (loginOverlay) loginOverlay.style.display = "none";
   if (ticketReporter) {
     ticketReporter.value = admin.username.charAt(0).toUpperCase() + admin.username.slice(1);
+  }
+  if (adminManageSection) {
+    const canManage = admin.isSuper || admin.username === "warren";
+    adminManageSection.style.display = canManage ? "grid" : "none";
   }
 };
 
@@ -426,18 +462,99 @@ const setLoggedOutState = () => {
 };
 
 const openAdminSettings = () => {
-  if (adminAvatarUrl) adminAvatarUrl.value = currentAdminInfo?.avatarUrl || "";
   if (adminPassword) adminPassword.value = "";
   if (adminSettingsModal) {
     adminSettingsModal.classList.add("show");
     adminSettingsModal.setAttribute("aria-hidden", "false");
   }
+  if (adminAddHint) adminAddHint.textContent = "";
+  if (adminNewUser) adminNewUser.value = "";
+  if (adminNewAvatar) adminNewAvatar.value = "";
+  if (adminNewFeishuId) adminNewFeishuId.value = "";
+  fetchAdmins();
 };
 
 const closeAdminSettings = () => {
   if (adminSettingsModal) {
     adminSettingsModal.classList.remove("show");
     adminSettingsModal.setAttribute("aria-hidden", "true");
+  }
+};
+
+const canManageAdmins = () => currentAdminInfo && (currentAdminInfo.isSuper || currentAdminInfo.username === "warren");
+
+const saveAdminFeishuId = async (username, feishuId) => {
+  if (!adminToken) return;
+  try {
+    const res = await fetch("/api/admins/feishu_id", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: adminToken, username, feishu_id: feishuId }),
+    });
+    if (res.status === 401) {
+      setLoggedOutState();
+      if (adminSettingsModal) adminSettingsModal.classList.remove("show");
+      return;
+    }
+    if (!res.ok) throw new Error("save failed");
+    fetchAdmins();
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const fetchAdmins = async () => {
+  if (!adminList || !adminToken) return;
+  try {
+    const res = await fetch(`/api/admins?token=${encodeURIComponent(adminToken)}`, { cache: "no-store" });
+    if (res.status === 401) {
+      setLoggedOutState();
+      if (adminSettingsModal) adminSettingsModal.classList.remove("show");
+      return;
+    }
+    if (!res.ok) throw new Error("fetch admins failed");
+    const data = await res.json();
+    const rows = Array.isArray(data?.data) ? data.data : [];
+    const canEdit = canManageAdmins();
+    adminList.innerHTML = rows
+      .map(
+        (item) => {
+          const feishuId = (item.feishu_id && String(item.feishu_id).trim()) || "";
+          const safeUsername = String(item.username).replace(/"|</g, "");
+          const safeFeishuId = feishuId.replace(/"/g, "&quot;");
+          if (canEdit) {
+            return `
+            <div class="admin-item admin-item-with-feishu">
+              <img src="${(item.avatar_url || "CustomerServiceToolLogo.png").replace(/"/g, "&quot;")}" alt="" />
+              <div class="name">${safeUsername}</div>
+              <div class="role">${item.is_super ? "Super" : "Admin"}</div>
+              <div class="admin-feishu-cell">
+                <input type="text" class="admin-feishu-input" data-username="${safeUsername}" value="${safeFeishuId}" placeholder="选填，工单回复后私聊" />
+                <button type="button" class="admin-feishu-save" data-username="${safeUsername}">保存</button>
+              </div>
+            </div>
+          `;
+          }
+          return `
+            <div class="admin-item">
+              <img src="${(item.avatar_url || "CustomerServiceToolLogo.png").replace(/"/g, "&quot;")}" alt="" />
+              <div class="name">${safeUsername}</div>
+              <div class="role">${item.is_super ? "Super" : "Admin"}</div>
+            </div>
+          `;
+        }
+      )
+      .join("");
+    adminList.querySelectorAll(".admin-feishu-save").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const username = btn.dataset.username;
+        const row = btn.closest(".admin-item");
+        const input = row && row.querySelector(".admin-feishu-input");
+        if (username && input) saveAdminFeishuId(username, input.value.trim());
+      });
+    });
+  } catch (error) {
+    adminList.innerHTML = "";
   }
 };
 
@@ -448,25 +565,72 @@ const fetchTickets = async () => {
     const data = await res.json();
     const rows = Array.isArray(data?.data) ? data.data : [];
     if (rows.length === 0) {
-      ticketListBody.innerHTML = '<div class="empty">暂无工单</div>';
+      ticketListBody.innerHTML = `<div class="empty">${I18N[activeLang].ticketEmpty}</div>`;
       return;
     }
     ticketListBody.innerHTML = "";
     rows.forEach((item) => {
       const row = document.createElement("div");
       row.className = "list-row";
+      const resolved = Boolean(item.resolved);
+      const statusCell = document.createElement("div");
+      statusCell.className = "ticket-resolved-cell";
+      statusCell.textContent = resolved ? "✅" : "❌";
+      statusCell.title = resolved ? "已处理完成（点击切换）" : "未完成（点击切换）";
+      statusCell.dataset.ticketId = item.id;
+      statusCell.dataset.resolved = resolved ? "1" : "0";
+      if (adminToken) {
+        statusCell.addEventListener("click", () => toggleTicketResolved(item.id, !resolved, statusCell));
+      }
       row.innerHTML = `
         <div>${formatTime(item.created_at)}</div>
         <div>${item.user_name || "-"}</div>
         <div>${item.reporter || "-"}</div>
         <div>${item.issue || "-"}</div>
       `;
+      row.appendChild(statusCell);
       ticketListBody.appendChild(row);
     });
   } catch (error) {
-    ticketListBody.innerHTML = '<div class="empty">工单加载失败</div>';
+    ticketListBody.innerHTML = `<div class="empty">${I18N[activeLang].ticketEmpty}</div>`;
   }
 };
+
+const toggleTicketResolved = async (ticketId, resolved, cellEl) => {
+  if (!adminToken || !cellEl) return;
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/resolved`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: adminToken, resolved: resolved ? 1 : 0 }),
+    });
+    if (!res.ok) return;
+    cellEl.textContent = resolved ? "✅" : "❌";
+    cellEl.dataset.resolved = resolved ? "1" : "0";
+    cellEl.title = resolved ? "已处理完成（点击切换）" : "未完成（点击切换）";
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+if (ticketExportBtn) {
+  ticketExportBtn.addEventListener("click", async () => {
+    if (!adminToken) return;
+    try {
+      const res = await fetch(`/api/tickets/export?token=${encodeURIComponent(adminToken)}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("export failed");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `tickets_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error(e);
+      alert("导出失败");
+    }
+  });
+}
 
 const formatTime = (value) => {
   if (!value) return "-";
@@ -552,7 +716,19 @@ const normalizeTokenChange = (change) => {
     change?.address ||
     "-";
   const direction = String(change?.type || change?.changeType || change?.action || "").toLowerCase();
-  return { symbol, address, direction };
+  const image =
+    change?.image ||
+    change?.icon ||
+    change?.logo ||
+    change?.logoUrl ||
+    change?.imageUrl ||
+    token?.image ||
+    token?.icon ||
+    token?.logo ||
+    token?.logoUrl ||
+    token?.imageUrl ||
+    "";
+  return { symbol, address, direction, image };
 };
 
 const resolveTokenPair = (changes) => {
@@ -578,7 +754,9 @@ const buildTokenMeta = (tokenChanges) => {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  return { label, tooltip, keywords };
+  const image1 = (decr?.image && String(decr.image).trim()) || "";
+  const image2 = (incr?.image && String(incr.image).trim()) || "";
+  return { label, tooltip, keywords, image1, image2 };
 };
 
 const extractTokenChanges = (result) => {
@@ -608,16 +786,42 @@ const fetchTransactionDetail = async (txId) => {
   return request;
 };
 
+const setTokenChangeCellContent = (cell, item) => {
+  const label = item.tokenChangeLabel || (item.tokenChangeFetched
+    ? I18N[activeLang].listNoTx
+    : I18N[activeLang].listTokenLoading);
+  cell.dataset.tooltip = item.tokenChangeTooltip || "";
+  cell.style.color = item.tokenChangeLabel ? "" : "#9ca3af";
+  cell.innerHTML = "";
+  const safeUrl = (url) => {
+    if (!url || typeof url !== "string") return "";
+    const t = url.trim();
+    return t.startsWith("http://") || t.startsWith("https://") ? t : "";
+  };
+  const img1 = safeUrl(item.tokenChangeImage1);
+  const img2 = safeUrl(item.tokenChangeImage2);
+  if (img1) {
+    const i1 = document.createElement("img");
+    i1.src = img1;
+    i1.className = "tx-token-icon";
+    i1.alt = "";
+    cell.appendChild(i1);
+  }
+  cell.appendChild(document.createTextNode(label));
+  if (img2) {
+    const i2 = document.createElement("img");
+    i2.src = img2;
+    i2.className = "tx-token-icon";
+    i2.alt = "";
+    cell.appendChild(i2);
+  }
+};
+
 const updateRowTokenCell = (item, row) => {
   if (!row) return;
   const cell = row.querySelector(".tx-change");
   if (!cell) return;
-  const label = item.tokenChangeLabel || (item.tokenChangeFetched
-    ? I18N[activeLang].listNoTx
-    : I18N[activeLang].listTokenLoading);
-  cell.textContent = label;
-  cell.dataset.tooltip = item.tokenChangeTooltip || "";
-  cell.style.color = item.tokenChangeLabel ? "" : "#9ca3af";
+  setTokenChangeCellContent(cell, item);
 };
 
 const ensureTxDetails = async (item) => {
@@ -630,6 +834,8 @@ const ensureTxDetails = async (item) => {
     item.tokenChangeLabel = meta.label;
     item.tokenChangeTooltip = meta.tooltip;
     item.tokenKeywords = meta.keywords;
+    item.tokenChangeImage1 = meta.image1;
+    item.tokenChangeImage2 = meta.image2;
   }
   item.tokenChangeFetched = true;
   const lendingOps = Array.isArray(result?.lendingUserOperations)
@@ -693,13 +899,7 @@ const renderTxList = (records) => {
 
     const linkCell = document.createElement("div");
     linkCell.className = "tx-change";
-    linkCell.textContent = item.tokenChangeLabel || (item.tokenChangeFetched
-      ? I18N[activeLang].listNoTx
-      : I18N[activeLang].listTokenLoading);
-    linkCell.dataset.tooltip = item.tokenChangeTooltip || "";
-    if (!item.tokenChangeLabel) {
-      linkCell.style.color = "#9ca3af";
-    }
+    setTokenChangeCellContent(linkCell, item);
 
     row.append(indexCell, idCell, linkCell);
 
@@ -951,12 +1151,11 @@ if (adminSettingsBackdrop) adminSettingsBackdrop.addEventListener("click", close
 if (adminSettingsSave) {
   adminSettingsSave.addEventListener("click", () => {
     if (!adminToken) return;
-    const avatarUrl = adminAvatarUrl?.value.trim() || "";
     const password = adminPassword?.value.trim() || "";
     fetch("/api/admin/profile", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: adminToken, avatarUrl, password }),
+      body: JSON.stringify({ token: adminToken, password }),
     })
       .then(async (res) => {
         if (!res.ok) throw new Error("update failed");
@@ -964,7 +1163,6 @@ if (adminSettingsSave) {
       })
       .then(() => {
         if (currentAdminInfo) {
-          currentAdminInfo.avatarUrl = avatarUrl || currentAdminInfo.avatarUrl;
           localStorage.setItem("adminUser", JSON.stringify(currentAdminInfo));
           setLoggedInState(currentAdminInfo);
         }
@@ -972,6 +1170,60 @@ if (adminSettingsSave) {
       })
       .catch(() => {
         alert("保存失败");
+      });
+  });
+}
+
+const readAvatarFile = (file) =>
+  new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+
+if (adminAddBtn) {
+  adminAddBtn.addEventListener("click", () => {
+    if (!adminToken) return;
+    const username = adminNewUser?.value.trim();
+    const avatarFile = adminNewAvatar?.files?.[0];
+    if (!username) {
+      if (adminAddHint) adminAddHint.textContent = I18N[activeLang].adminAddFail;
+      return;
+    }
+    adminAddBtn.disabled = true;
+    const feishuId = adminNewFeishuId?.value.trim() || undefined;
+    readAvatarFile(avatarFile)
+      .then((avatarUrl) =>
+        fetch("/api/admins", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: adminToken, username, avatarUrl, feishu_id: feishuId }),
+        })
+      )
+      .then(async (res) => {
+        if (res.status === 401) {
+          setLoggedOutState();
+          if (adminSettingsModal) adminSettingsModal.classList.remove("show");
+          return res.json().catch(() => ({}));
+        }
+        if (!res.ok) throw new Error("add failed");
+        return res.json();
+      })
+      .then(() => {
+        if (!adminToken) return;
+        if (adminAddHint) adminAddHint.textContent = I18N[activeLang].adminAddSuccess;
+        if (adminNewUser) adminNewUser.value = "";
+        if (adminNewAvatar) adminNewAvatar.value = "";
+        if (adminNewFeishuId) adminNewFeishuId.value = "";
+        fetchAdmins();
+      })
+      .catch(() => {
+        if (adminAddHint) adminAddHint.textContent = I18N[activeLang].adminAddFail;
+      })
+      .finally(() => {
+        adminAddBtn.disabled = false;
       });
   });
 }
