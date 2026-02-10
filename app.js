@@ -66,6 +66,13 @@ const loginUserLabel = document.getElementById("loginUserLabel");
 const loginPassLabel = document.getElementById("loginPassLabel");
 const ticketListBody = document.getElementById("ticketListBody");
 const ticketExportBtn = document.getElementById("ticketExportBtn");
+const ticketSectionTitle = document.getElementById("ticketSectionTitle");
+const ticketSectionSubtitle = document.getElementById("ticketSectionSubtitle");
+const ticketColTime = document.getElementById("ticketColTime");
+const ticketColUser = document.getElementById("ticketColUser");
+const ticketColReporter = document.getElementById("ticketColReporter");
+const ticketColIssue = document.getElementById("ticketColIssue");
+const ticketColStatus = document.getElementById("ticketColStatus");
 const adminSettingsBtn = document.getElementById("adminSettingsBtn");
 const adminSettingsModal = document.getElementById("adminSettingsModal");
 const adminSettingsBackdrop = document.getElementById("adminSettingsBackdrop");
@@ -166,6 +173,7 @@ const I18N = {
     ticketIssuePlaceholder: "请输入问题描述",
     ticketHint: "工单将接入飞书（等待配置 appid）",
     ticketSubmit: "提交工单",
+    ticketSubmitSuccess: "工单已提交到飞书",
     loginTitle: "管理员登录",
     loginSubtitle: "仅授权管理员可访问",
     loginUserLabel: "用户名",
@@ -183,6 +191,17 @@ const I18N = {
     adminAddFail: "新增失败",
     adminListTitle: "当前授权账号",
     ticketEmpty: "暂无工单",
+    ticketSectionTitle: "工单记录",
+    ticketSectionSubtitle: "最近提交记录",
+    ticketColTime: "时间",
+    ticketColUser: "用户",
+    ticketColReporter: "反馈人",
+    ticketColIssue: "问题",
+    ticketColStatus: "状态",
+    ticketExportBtn: "导出工单",
+    ticketStatusDone: "已处理完成（点击切换）",
+    ticketStatusPending: "未完成（点击切换）",
+    exportFail: "导出失败",
     statusReady: "准备就绪",
     statusLoading: "加载中...",
     statusMissingQuery: "请输入查询条件",
@@ -261,6 +280,7 @@ const I18N = {
     ticketIssuePlaceholder: "Describe the issue",
     ticketHint: "Ticket will be sent to Feishu (awaiting appid config)",
     ticketSubmit: "Submit",
+    ticketSubmitSuccess: "Ticket submitted to Feishu",
     loginTitle: "Admin Sign-in",
     loginSubtitle: "Authorized admins only",
     loginUserLabel: "Username",
@@ -278,6 +298,17 @@ const I18N = {
     adminAddFail: "Add failed",
     adminListTitle: "Authorized Users",
     ticketEmpty: "No tickets",
+    ticketSectionTitle: "Ticket Records",
+    ticketSectionSubtitle: "Recent submissions",
+    ticketColTime: "Time",
+    ticketColUser: "User",
+    ticketColReporter: "Reporter",
+    ticketColIssue: "Issue",
+    ticketColStatus: "Status",
+    ticketExportBtn: "Export Tickets",
+    ticketStatusDone: "Done (click to toggle)",
+    ticketStatusPending: "Pending (click to toggle)",
+    exportFail: "Export failed",
     statusReady: "Ready",
     statusLoading: "Loading...",
     statusMissingQuery: "Please enter a query",
@@ -375,6 +406,14 @@ const applyLanguage = () => {
   setText(adminNewAvatarLabel, dict.adminNewAvatarLabel);
   setText(adminAddBtn, dict.adminAddBtn);
   setText(adminListTitle, dict.adminListTitle);
+  setText(ticketSectionTitle, dict.ticketSectionTitle);
+  setText(ticketSectionSubtitle, dict.ticketSectionSubtitle);
+  setText(ticketColTime, dict.ticketColTime);
+  setText(ticketColUser, dict.ticketColUser);
+  setText(ticketColReporter, dict.ticketColReporter);
+  setText(ticketColIssue, dict.ticketColIssue);
+  setText(ticketColStatus, dict.ticketColStatus);
+  setText(ticketExportBtn, dict.ticketExportBtn);
 
   const config = QUERY_CONFIG[activeQueryType];
   setText(queryLabel, dict.queryLabel[activeQueryType]);
@@ -576,7 +615,8 @@ const fetchTickets = async () => {
       const statusCell = document.createElement("div");
       statusCell.className = "ticket-resolved-cell";
       statusCell.textContent = resolved ? "✅" : "❌";
-      statusCell.title = resolved ? "已处理完成（点击切换）" : "未完成（点击切换）";
+      const dict = I18N[activeLang];
+      statusCell.title = resolved ? dict.ticketStatusDone : dict.ticketStatusPending;
       statusCell.dataset.ticketId = item.id;
       statusCell.dataset.resolved = resolved ? "1" : "0";
       if (adminToken) {
@@ -607,7 +647,8 @@ const toggleTicketResolved = async (ticketId, resolved, cellEl) => {
     if (!res.ok) return;
     cellEl.textContent = resolved ? "✅" : "❌";
     cellEl.dataset.resolved = resolved ? "1" : "0";
-    cellEl.title = resolved ? "已处理完成（点击切换）" : "未完成（点击切换）";
+    const dict = I18N[activeLang];
+    cellEl.title = resolved ? dict.ticketStatusDone : dict.ticketStatusPending;
   } catch (e) {
     console.error(e);
   }
@@ -627,7 +668,7 @@ if (ticketExportBtn) {
       URL.revokeObjectURL(a.href);
     } catch (e) {
       console.error(e);
-      alert("导出失败");
+      alert(I18N[activeLang].exportFail);
     }
   });
 }
@@ -1104,6 +1145,7 @@ langButtons.forEach((btn) => {
     renderRedPacket(lastPayload?.redPacketAnalysis);
     renderInvite(lastPayload?.inviteAnalysis);
     renderTxList(fullTxs);
+    fetchTickets();
   });
 });
 
@@ -1278,7 +1320,7 @@ ticketSubmitBtn.addEventListener("click", () => {
       return res.json();
     })
     .then(() => {
-      alert("工单已提交到飞书");
+      alert(I18N[activeLang].ticketSubmitSuccess);
       closeTicketModal();
       ticketUserName.value = "";
       ticketIssue.value = "";
